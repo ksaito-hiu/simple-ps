@@ -9,8 +9,12 @@
     <!-- <script src="https://cdn.jsdelivr.net/npm/simple-ps@0.0.0/dist/simple-ps.js"></script> -->
     <script src="../dist/simple-ps.js"></script>
     <script>
-      const engine = new SimplePS.Engine();
-      console.log(engine);
+      const ruleStr =
+`/* abc */1: abc(a b) def(1 "b") -> s() b() ;
+2: x(a あ) -> y();
+`;
+      const engine = new SimplePS.Engine(ruleStr);
+      console.log(engine.rules);
     </script>
   </body>
 </html>
