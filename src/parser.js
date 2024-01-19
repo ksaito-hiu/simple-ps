@@ -270,16 +270,8 @@ function rule() {
   return new Rule(priority,lhs,rhs);
 }
 
-// ルールの集合。ここが文法解析の出発点。解析するための
-// 文字列を引数で渡す。色々初期化してからスタート。
-// 解析が成功したらRuleの配列を返す。そして、解析失敗の
-// 時はnullではなくエラーメッセージの文字列を返す。
-// 入力が空っぽの時も成功と見なして空の配列を返す。
+// ルールの集合。ここが文法解析の出発点。
 function rules(input) {
-  inputStr = input;
-  idx = 0;
-  errorMessage = "";
-
   const idxBackup = idx;
   const rs = [];
   while (true) {
@@ -294,9 +286,26 @@ function rules(input) {
     }
     // ここまで来たら何かエラー
     idx = idxBackup;
-    return errorMessage; // rule()の時のエラーを返す
+    // errorMessageはrule()の時のエラーを残す
+    return null;
   }
   return rs;
 }
 
-export { rules };
+// 文法解析を実行する関数。
+// 解析するための文字列を引数で渡す。色々初期化してからスタート。
+// 解析が成功したらRuleの配列を返す。そして、解析失敗の
+// 時はエラーメッセージの文字列を返す。
+// 入力が空っぽの時も成功と見なして空の配列を返す。
+function parse(input) {
+  inputStr = input;
+  idx = 0;
+  errorMessage = "";
+
+  const rs = rules();
+  if (rs === null)
+    return errorMessage;
+  return rs;
+}
+
+export { parse };
