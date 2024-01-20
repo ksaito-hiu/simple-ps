@@ -9,12 +9,28 @@
     <!-- <script src="https://cdn.jsdelivr.net/npm/simple-ps@0.0.0/dist/simple-ps.js"></script> -->
     <script src="../dist/simple-ps.js"></script>
     <script>
-      const ruleStr =
-`/* abc */1: abc(a b) def(1 "b") -> s() b() ;
-2: x(a あ) -> y();
+     const ruleStr =
+`/* 動物システムのルール */
+1: s(体毛) > st(哺乳動物) ;
+1: s(授乳) > st(哺乳動物) ;
+1: s(飛ぶ), s(産卵) > st(鳥) ;
+1: s(羽), no(ペンギン) > st(飛ぶ) ;
+1: s(哺乳動物), s(肉食) > st(肉食動物) ;
+1: s(哺乳動物), s(鋭い歯), s(鋭い爪) > st(肉食動物) ;
+1: s(哺乳動物), s(蹄) > st(有蹄動物) ;
+1: s(肉食動物), s(黄褐色), s(黒い縞) > st(トラ), st2(名前,"トラ") ;
+1: s(肉食動物), s(黄褐色), s(黒い斑点) > st(チータ), st2(名前,"チータ") ;
+1: s(有蹄動物), s(黄褐色), s(黒い斑点) > st(キリン), st2(名前,"キリン") ;
+1: s(名前) > log("その動物は",名前,"ですね！") stop() ;
 `;
-      const engine = new SimplePS.Engine(ruleStr);
-      console.log(engine.rules);
+     const engine = new SimplePS.Engine(ruleStr);
+     console.log(engine.rules);
+     engine.setInfoToWM("体毛");
+     engine.setInfoToWM("鋭い歯");
+     engine.setInfoToWM("鋭い爪");
+     engine.setInfoToWM("黄褐色");
+     engine.setInfoToWM("黒い斑点");
+     engine.start();
     </script>
   </body>
 </html>

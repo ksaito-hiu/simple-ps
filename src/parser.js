@@ -213,21 +213,27 @@ function number() {
 // 項(条件やビルトインなど)を解析。項は関数の形をしている。
 function term() {
   const idxBackup = idx;
-  const fun = id();
-  if (fun == null) return null;
+  const name = id();
+  if (name == null) return null;
     whiteSpace();
   if (char('(') == null) {idx=idxBackup;return null};
   const args = []; // 引数の配列
   while (true) {
     whiteSpace();
+    if (inputStr.charAt(idx) === ',')
+      idx++;
+    whiteSpace();
     const v = id(); if (v) {args.push(new Var(v));continue;} // 変数
     const n = number(); if (n) {args.push(n);continue;} // 数字
     const s = string(); if (s) {args.push(s);continue;} // 文字列
-
     break;
   }
+  whiteSpace();
   if (char(')') == null) {idx=idxBackup;return null};
-  return new Term(fun,args);
+  whiteSpace();
+  if (inputStr.charAt(idx) === ',')
+    idx++;
+  return new Term(name,args);
 }
 
 // ルール1本分。Ruleのインスタンスを返す。エラーならエラーメッセージを返す。
@@ -251,7 +257,7 @@ function rule() {
     return null;
   }
   whiteSpace();
-  if (char('-') == null) { idx=idxBackup; return null; }
+  //if (char('-') == null) { idx=idxBackup; return null; } // やっぱり入れない
   if (char('>') == null) { idx=idxBackup; return null; }
   const rhs = [];
   while (true) {
@@ -271,7 +277,7 @@ function rule() {
 }
 
 // ルールの集合。ここが文法解析の出発点。
-function rules(input) {
+function rules() {
   const idxBackup = idx;
   const rs = [];
   while (true) {

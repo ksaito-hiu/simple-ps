@@ -1,3 +1,3 @@
-import { Engine } from "./simple-ps";
+import { Engine, BuiltIn } from "./simple-ps";
 
-export { Engine };
+export { Engine, BuiltIn };
