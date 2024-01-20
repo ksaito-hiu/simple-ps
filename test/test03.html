@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>test</title>
+  </head>
+  <body>
+    <h1>test</h1>
+    <div id="maze_container"></div>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/simple-ps@latest/dist/simple-ps.js"></script> -->
+    <script src="../dist/simple-ps.js"></script>
+    <script src="./test03.js"></script>
+    <script>
+     // 迷路を埋め込む場所をCSSセレクタで指定して迷路を生成
+     const maze = new Maze("#maze_container");
+
+     class CustomBI extends SimplePS.BuiltIn {
+       constructor() {super("custom");}
+       eval() {
+         this.checkArgsNum(1);
+         const str = this.getArgAsStr(0);
+console.log("GAHA:",str);
+         if (str==="前進") maze.goForward();
+         else if (str==="左旋回") maze.turnLeft();
+         else if (str==="右旋回") maze.turnRight();
+         if (maze.reachedTheGoal()) {
+           console.log("Goal!");
+         } else {
+           setTimeout(()=>{
+             const status = maze.getStatusOfAI();
+             engine.setInfoToWM("前壁",status.front);
+             engine.setInfoToWM("左壁",status.left);
+             engine.setInfoToWM("右壁",status.right);
+           },1000);
+         }
+       }
+     }
+
+     const ruleStr =
+`/* 迷路を自動で解くルール． */
+1: seq(右壁 "なし") > custom("右旋回") custom("前進") ;
+1: seq(前壁 "あり") seq(右壁 "あり") > custom("左旋回") ;
+1: seq(前壁 "なし") > custom("前進") ;
+`;
+     const engine = new SimplePS.Engine(ruleStr);
+     engine.addBuiltIn(new CustomBI());
+     //console.log(engine.rules);
+     const status0 = maze.getStatusOfAI();
+     engine.setInfoToWM("前壁",status0.front);
+     engine.setInfoToWM("左壁",status0.left);
+     engine.setInfoToWM("右壁",status0.right);
+     engine.start();
+    </script>
+  </body>
+</html>

@@ -6,45 +6,46 @@
   </head>
   <body>
     <h1>test</h1>
-    <!-- <script src="https://cdn.jsdelivr.net/npm/simple-ps@0.0.0/dist/simple-ps.js"></script> -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/simple-ps@latest/dist/simple-ps.js"></script> -->
     <script src="../dist/simple-ps.js"></script>
     <script>
      const ruleStr =
 `/* 数当てゲームのルール */
 10: s(スタート) > del(スタート) rand(秘密の答) mul(秘密の答 10 秘密の答)
-    floor(秘密の答 秘密の答) st(秘密の答) log("0から9の数字を入力して！") ;
+    floor(秘密の答 秘密の答) st(秘密の答) alert("0から9の数字を入力して！") ;
 
-5: no(入力) > prompt(入力) ;
+5: no(入力) > prompt(入力) wm() ;
 
 1: s(入力) s(秘密の答) gt(入力 秘密の答) >
-   log("もっと小さな値だよ") prompt(入力) ;
+   alert("もっと小さな値だよ") prompt(入力) ;
 1: s(入力) s(秘密の答) lt(入力 秘密の答) >
-   log("もっと大きな値だよ") prompt(入力) ;
+   alert("もっと大きな値だよ") prompt(入力) ;
 1: s(入力) s(秘密の答) eq(入力 秘密の答) >
-   log("大正解！") stop() ;
+   alert("大正解！") stop() ;
 `;
 
      class PromptBI extends SimplePS.BuiltIn {
-       constructor(engine) {super("prompt",engine);}
-       eval(args,env) {
-         this.checkArgsNo(args,1);
-         this.checkArgNVar(args,0);
-         const n = prompt(args[0].name);
-         env[args[0].name] = Number(n);
+       constructor() {super("prompt");}
+       eval() {
+         this.checkArgsNum(1);
+         const name = this.getArgAsName(0);
+         const n = prompt(name);
+         this.setVar(name,Number(n));
+         this.setInfoToWM(name,Number(n));
        }
      }
      class AlertBI extends SimplePS.BuiltIn {
-       constructor(engine) {super("alert",engine);}
-       eval(args,env) {
-         this.checkArgsNo(args,1);
-         this.checkArgNNoEmpty(args,0);
-         alert(env[args[0].name]);
+       constructor() {super("alert");}
+       eval() {
+         this.checkArgsNum(1);
+         const msg = this.getArgIfNotEmpty(0);
+         alert(msg);
        }
      }
      const engine = new SimplePS.Engine(ruleStr);
      engine.addBuiltIn(new PromptBI(engine));
      engine.addBuiltIn(new AlertBI(engine));
-     console.log(engine.rules);
+     //console.log(engine.rules);
      engine.setInfoToWM("スタート");
      engine.start();
     </script>

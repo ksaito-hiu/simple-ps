@@ -6,7 +6,7 @@
   </head>
   <body>
     <h1>test</h1>
-    <!-- <script src="https://cdn.jsdelivr.net/npm/simple-ps@0.0.0/dist/simple-ps.js"></script> -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/simple-ps@latest/dist/simple-ps.js"></script> -->
     <script src="../dist/simple-ps.js"></script>
     <script>
      const ruleStr =
@@ -24,7 +24,7 @@
 1: s(名前) > log("その動物は",名前,"ですね！") stop() ;
 `;
      const engine = new SimplePS.Engine(ruleStr);
-     console.log(engine.rules);
+     //console.log(engine.rules);
      engine.setInfoToWM("体毛");
      engine.setInfoToWM("鋭い歯");
      engine.setInfoToWM("鋭い爪");
