@@ -399,6 +399,7 @@ class NoBI extends BuiltIn {
 class GtBI extends BuiltIn {
   constructor(engine) {super("gt",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
@@ -406,6 +407,7 @@ class GtBI extends BuiltIn {
 class LtBI extends BuiltIn {
   constructor(engine) {super("lt",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
@@ -413,6 +415,7 @@ class LtBI extends BuiltIn {
 class GeBI extends BuiltIn {
   constructor(engine) {super("ge",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
@@ -420,6 +423,7 @@ class GeBI extends BuiltIn {
 class LeBI extends BuiltIn {
   constructor(engine) {super("le",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
@@ -427,6 +431,7 @@ class LeBI extends BuiltIn {
 class EqBI extends BuiltIn {
   constructor(engine) {super("eq",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
@@ -434,6 +439,7 @@ class EqBI extends BuiltIn {
 class NeqBI extends BuiltIn {
   constructor(engine) {super("neq",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
@@ -441,6 +447,7 @@ class NeqBI extends BuiltIn {
 class RangeBI extends BuiltIn {
   constructor(engine) {super("range",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
@@ -448,6 +455,7 @@ class RangeBI extends BuiltIn {
 class Range2BI extends BuiltIn {
   constructor(engine) {super("range2",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
@@ -455,6 +463,7 @@ class Range2BI extends BuiltIn {
 class SeqBI extends BuiltIn {
   constructor(engine) {super("seq",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
@@ -462,6 +471,7 @@ class SeqBI extends BuiltIn {
 class SgtBI extends BuiltIn {
   constructor(engine) {super("sgt",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
@@ -469,6 +479,7 @@ class SgtBI extends BuiltIn {
 class SltBI extends BuiltIn {
   constructor(engine) {super("slt",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
@@ -476,6 +487,7 @@ class SltBI extends BuiltIn {
 class SgeBI extends BuiltIn {
   constructor(engine) {super("sge",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
@@ -483,6 +495,7 @@ class SgeBI extends BuiltIn {
 class SleBI extends BuiltIn {
   constructor(engine) {super("sle",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
@@ -490,6 +503,7 @@ class SleBI extends BuiltIn {
 class SetBI extends BuiltIn {
   constructor(engine) {super("set",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
@@ -523,6 +537,7 @@ class Store2BI extends BuiltIn {
 class DelBI extends BuiltIn {
   constructor(engine) {super("del",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
@@ -530,6 +545,7 @@ class DelBI extends BuiltIn {
 class AddBI extends BuiltIn {
   constructor(engine) {super("add",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
@@ -537,6 +553,7 @@ class AddBI extends BuiltIn {
 class SubBI extends BuiltIn {
   constructor(engine) {super("sub",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
@@ -544,6 +561,7 @@ class SubBI extends BuiltIn {
 class MulBI extends BuiltIn {
   constructor(engine) {super("mul",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
@@ -551,6 +569,7 @@ class MulBI extends BuiltIn {
 class DivBI extends BuiltIn {
   constructor(engine) {super("div",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
@@ -558,6 +577,7 @@ class DivBI extends BuiltIn {
 class ConcatBI extends BuiltIn {
   constructor(engine) {super("concat",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
@@ -578,6 +598,7 @@ class LogBI extends BuiltIn {
 class RandBI extends BuiltIn {
   constructor(engine) {super("rand",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
@@ -585,6 +606,7 @@ class RandBI extends BuiltIn {
 class ModBI extends BuiltIn {
   constructor(engine) {super("mod",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
@@ -592,6 +614,7 @@ class ModBI extends BuiltIn {
 class FloorBI extends BuiltIn {
   constructor(engine) {super("floor",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
@@ -602,6 +625,7 @@ class FloorBI extends BuiltIn {
 class SneqBI extends BuiltIn {
   constructor(engine) {super("sneq",engine);}
   eval(args,env) {
+    console.log(`${this.name}(${this.constructor.name}) is not implemented yet!`);
   }
 }
 
