@@ -25,11 +25,13 @@
 `;
      const engine = new SimplePS.Engine(ruleStr);
      //console.log(engine.rules);
-     engine.setInfoToWM("体毛");
-     engine.setInfoToWM("鋭い歯");
-     engine.setInfoToWM("鋭い爪");
-     engine.setInfoToWM("黄褐色");
-     engine.setInfoToWM("黒い斑点");
+     engine.setOneInfoToWM("体毛");
+     engine.setOneInfoToWM("鋭い歯");
+     engine.setOneInfoToWM("鋭い爪");
+     //engine.setOneInfoToWM("黄褐色",null);
+     engine.setOneInfoToWM("黄褐色");
+     //engine.setInfoToWM({ "黒い斑点":null });
+     engine.setOneInfoToWM("黒い斑点");
      engine.start();
     </script>
   </body>

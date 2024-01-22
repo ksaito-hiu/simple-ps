@@ -14,7 +14,7 @@
 10: s(スタート) > del(スタート) rand(秘密の答) mul(秘密の答 10 秘密の答)
     floor(秘密の答 秘密の答) st(秘密の答) alert("0から9の数字を入力して！") ;
 
-5: no(入力) > prompt(入力) wm() ;
+5: no(入力) > prompt(入力) ;
 
 1: s(入力) s(秘密の答) gt(入力 秘密の答) >
    alert("もっと小さな値だよ") prompt(入力) ;
@@ -31,7 +31,7 @@
          const name = this.getArgAsName(0);
          const n = prompt(name);
          this.setVar(name,Number(n));
-         this.setInfoToWM(name,Number(n));
+         this.setOneInfoToWM(name,Number(n));
        }
      }
      class AlertBI extends SimplePS.BuiltIn {
@@ -46,7 +46,7 @@
      engine.addBuiltIn(new PromptBI(engine));
      engine.addBuiltIn(new AlertBI(engine));
      //console.log(engine.rules);
-     engine.setInfoToWM("スタート");
+     engine.setOneInfoToWM("スタート");
      engine.start();
     </script>
   </body>

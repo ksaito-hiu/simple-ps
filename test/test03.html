@@ -19,7 +19,7 @@
        eval() {
          this.checkArgsNum(1);
          const str = this.getArgAsStr(0);
-console.log("GAHA:",str);
+//console.log("GAHA:",str);
          if (str==="前進") maze.goForward();
          else if (str==="左旋回") maze.turnLeft();
          else if (str==="右旋回") maze.turnRight();
@@ -28,9 +28,12 @@ console.log("GAHA:",str);
          } else {
            setTimeout(()=>{
              const status = maze.getStatusOfAI();
-             engine.setInfoToWM("前壁",status.front);
-             engine.setInfoToWM("左壁",status.left);
-             engine.setInfoToWM("右壁",status.right);
+             const info = {
+               "前壁": status.front,
+               "左壁": status.left,
+               "右壁": status.right
+             };
+             engine.setInfoToWM(info);
            },1000);
          }
        }
@@ -46,9 +49,12 @@ console.log("GAHA:",str);
      engine.addBuiltIn(new CustomBI());
      //console.log(engine.rules);
      const status0 = maze.getStatusOfAI();
-     engine.setInfoToWM("前壁",status0.front);
-     engine.setInfoToWM("左壁",status0.left);
-     engine.setInfoToWM("右壁",status0.right);
+     const info = {
+       "前壁": status0.front,
+       "左壁": status0.left
+     };
+     info["右壁"] = status0.right;
+     engine.setInfoToWM(info);
      engine.start();
     </script>
   </body>

@@ -5,10 +5,13 @@ import { parse } from './parser';
 // ワーキングメモリの状況に変化があれば自動で
 // 推論を再開するようにする。
 // ただ、無駄にCPUを消費することが無いように、
-// ワーキングメモリに変化が無い時は自動で
-// スリープ状態にする。
-// 上記を実現する方針は、Java版SimplePSを参考に
-// するべし。
+// 実行できるルールが無い時は自動でスリープ状態にする。
+// また、競合解消戦略はパート1とパート2に分けた。
+// パート2は簡単でルールに設定されたプライオリティが
+// 一番高いやつを選ぶだけ。パート1がむずかしくて、
+// 同じルールが無限に実行され続けるのを防ぐための物。
+// これの実装はRuleクラスのisNewSituation()メソッドに
+// 集約した。isNewSituation()はまだ理想的な状態ではない。
 
 //変数
 class Var {
@@ -41,20 +44,6 @@ class Term {
     str += ")"
     return str;
   }
-  // このTermの引数の中に情報名(変数)が
-  // あったら、その情報名でWMを検索しupdateTimeを
-  // 抽出し、その一番新しい値(最大値)を返す。
-  newestTime(engine) {
-    let newestTime = 0;
-    this.args.forEach((arg)=>{
-      if (arg.constructor === "Var") {
-        const updateTime = engine.getInfoUpdateTime(arg.name);
-        if (newestTime < updateTime)
-          newestTime = updateTime;
-      }
-    });
-    return newestTime;
-  }
 }
 
 class Rule {
@@ -63,13 +52,13 @@ class Rule {
   lhs; // 条件部(Left Hand Side)(Termの配列)
   rhs; // 実行部(Right Hand Side)(Termの配列)
   env; // 変数のバインディングを保持する環境
-  updateTime; // このルールが最後に実行された時間
+  lastExecTime; // このルールが最後に実行された時間
 
   constructor(priority,lhs,rhs) {
     this.priority = priority;
     this.lhs = lhs;
     this.rhs = rhs;
-    this.updateTime = -1;
+    this.lastExecTime = -1;
   }
   toString() {
     let str = "";
@@ -88,7 +77,6 @@ class Rule {
   // このルールの適用条件が満されているかチェック。
   checkConditions() {
     this.env = {};
-    let newestTime = -1;
     for (let i=0;i<this.lhs.length;i++) {
       const term = this.lhs[i];
       const builtIn = this.engine.builtIns[term.name];
@@ -96,9 +84,6 @@ class Rule {
         try {
           if (!builtIn.preEval(term.args,this.env))
             return false;
-          const t = term.newestTime(this.engine);
-          if (t>newestTime)
-            newestTime = t;
         } catch(e) {
           console.log(e);
           return false;
@@ -108,16 +93,42 @@ class Rule {
         return false;
       }
     }
-    //前に実行されてから状況が変っていなければ
-    //条件があっていても無意味に(?)2度以上実行されるのを防ぐ
-    if (newestTime<=this.updateTime)
-      return false;
     return true;
+  }
+
+  // 競合解消
+  // このルールの条件部を判定する作業が副作用
+  // (例えば変数へのバインドなど)も含め、前回の実行時と
+  // まったく同じであれば「真」そうでなければ「偽」を返す・・・
+  // のが理想だけど、とりあえず条件部で参照されるWMの
+  // 項目が以前の実行時から更新されている物が1つでもあれば
+  // 「真」そうでなければ「偽」としている。ほぼ良いと
+  // 思うが、no(NoBI)ビルトインだけ特殊で、これは間にあわせ
+  // の対応。
+  isNewSituation() {
+    let isNew = false;
+    ext1: for (let i=0;i<this.lhs.length;i++) {
+      const term = this.lhs[i];
+      for (let j=0;j<term.args.length;j++) {
+        const arg = term.args[j];
+        if (arg.constructor.name === "Var") {
+          const updateTime =this.engine.getInfoUpdateTime(arg.name);
+          if (updateTime > this.lastExecTime) {
+            isNew = true;
+            break ext1;
+          } else if (term.name === "no" && updateTime===undefined) {
+            isNew = true;
+            break ext1;
+          }
+        }
+      }
+    }
+    return isNew;
   }
 
   // このルールの実行部を実行
   doActions() {
-    this.updateTime = this.engine.timeCounter;
+    this.lastExecTime = this.engine.workingMemoryTime;
     this.rhs.forEach((term)=>{
       const builtIn = this.engine.builtIns[term.name];
       if (builtIn) {
@@ -239,9 +250,13 @@ class BuiltIn {
   getVar(name) {
     return this.env[name];
   }
-  // ワーキングメモリに情報を追加または上書きする
-  setInfoToWM(infoName,value) {
-    this.engine.setInfoToWM(infoName,value);
+  // ワーキングメモリに情報を1個ずつ追加または上書き
+  setOneInfoToWM(infoName,value) {
+    this.engine.setOneInfoToWM(infoName,value);
+  }
+  // keyとvalueのセットを受けとりワーキングメモリに情報を追加または上書き
+  setInfoToWM(keyValue) {
+    this.engine.setInfoToWM(keyValue);
   }
   // ワーキングメモリから情報を取り出す
   getInfoFromWM(infoName) {
@@ -258,9 +273,15 @@ class Engine {
   rules; // ルールの配列
   builtIns; // ビルトインのMap
   workingMemory; // ワーキングメモリのMap
-  stopRequest; // 推論の終了リクエスト(boolean)
-  timeCounter; // ワーキングメモリの変化で進むタイムカウンタ(整数)
-  timeoutID; // setTimeoutを止めるために記録(-1の時は推論中)(整数)
+  workingMemoryTime; // ワーキングメモリの更新時刻
+  // 推論の実行状態(inferStatus)
+  // "stoped": 停止中(wmに変化があっても走り出さない)
+  // "waitForRun": 次の実行を待機中
+  // "running": まさに実行中
+  // "standby": 実行中ではあるが今やることがないので待機中
+  // "waitForStop": 停止要求は出されてるけどまだ実行中の場合
+  inferStatus;
+  timeoutID; // setTimeoutを止めるために記録(整数)
 
   constructor(ruleStr) {
     if (ruleStr === undefined)
@@ -272,9 +293,9 @@ class Engine {
     });
     this.builtIns = {};
     this.workingMemory = {};
-    this.stopRequest = true; // setInfoToWM()で勝手に動き出さないように。
-    this.timeCounter = 0;
-    this.timeoutID = 0; // 0はsetTimeout中でもなく推論中でもない時
+    this.workingMemoryTime = 0;
+    this.inferStatus = "stoped";
+    this.timeoutID = 0;
 
     this.addBuiltIn(new SearchBI());
     this.addBuiltIn(new NoBI());
@@ -315,13 +336,35 @@ class Engine {
     this.builtIns[builtIn.name] = builtIn;
   }
 
-  // ワーキングメモリに情報を追加または上書き
-  setInfoToWM(infoName,value) {
+  // ワーキングメモリに情報を1個ずつ追加または上書き
+  setOneInfoToWM(infoName,value) {
+    this.workingMemoryTime++;
     if (value === undefined) value = null;
-    this.timeCounter++;
-    this.workingMemory[infoName] = {updateTime:this.timeCounter,value};
-    if (this.stopRequest === false && this.timeoutID === 0)
-      this.start();
+    this.workingMemory[infoName] = {updateTime:this.workingMemoryTime,value};
+    switch(this.inferStatus) {
+    case "stoped": break; // 何もしなくてOK
+    case "waitForRun": break; // 何もしなくて良いはず
+    case "running": break; // ありえないはず
+    case "standby": this.justStart(); break; // 起動
+    case "waitForStop": break; // 何もしなくて良いはず
+    }
+  }
+  // keyとvalueのセットを受けとりワーキングメモリに情報を追加または上書き
+  setInfoToWM(keyValue) {
+    this.workingMemoryTime++;
+    Object.keys(keyValue).forEach((infoName)=>{
+      const value = keyValue[infoName];
+      if (value === undefined) value = null;
+      this.workingMemory[infoName] = {updateTime:this.workingMemoryTime,value};
+    });
+    
+    switch(this.inferStatus) {
+    case "stoped": break; // 何もしなくてOK
+    case "waitForRun": break; // 何もしなくて良いはず
+    case "running": break; // ありえないはず
+    case "standby": this.justStart(); break; // 起動
+    case "waitForStop": break; // 何もしなくて良いはず
+    }
   }
 
   // ワーキングメモリから情報を取り出す
@@ -334,6 +377,13 @@ class Engine {
   // ワーキングメモリから情報を消去
   delInfoFromWM(infoName) {
     delete this.workingMemory[infoName];
+    switch(this.inferStatus) {
+    case "stoped": break; // 何もしなくてOK
+    case "waitForRun": break; // 何もしなくて良いはず
+    case "running": break; // ありえないはず
+    case "standby": this.justStart(); break; // 起動
+    case "waitForStop": break; // 何もしなくて良いはず
+    }
   }
 
   // ワーキングメモリから情報の更新時間を取り出す
@@ -345,28 +395,66 @@ class Engine {
 
   // ワーキングメモリの内容を文字列でダンプ
   dumpWM() {
-    let str = "";
+    let str = "[WM update="+this.workingMemoryTime+"]";
     Object.keys(this.workingMemory).forEach((key)=>{
       str += key + ":";
-      str += this.workingMemory[key].value + " ";
+      str += this.workingMemory[key].value + "(";
+      str += this.workingMemory[key].updateTime + ") ";
     });
     return str;
   }
 
-  // 推論をスタート
-  start() {
-    this.stopRequest = false;
+  // 推論をスタート(内部使用。単純に推論をスタートさせる)
+  justStart() {
+console.trace("GAHA");
     this.timeoutID = setTimeout(()=>{this.inferLoop();},0);
+    this.inferStatus = "waitForRun";
+  }
+  
+  // 推論をスタート(外部からの呼び出し用)
+  start() {
+    switch(this.inferStatus) {
+    case "stoped": this.justStart(); break; // 起動
+    case "waitForRun": break; // 何もしなくて良いはず
+    case "running": break; // ありえないはず
+    case "standby": this.justStart(); break; // 起動
+    case "waitForStop": this.justStart(); break; // 起動
+    }
   }
 
   // 推論のループ。[照合、競合解消、実行]1セット分
   inferLoop() {
-    this.timeoutID = -1;
-    const conflictSet = [];
+console.log("GAHA0:Engine.inferLoop() ******************************");
+//console.log("GAHA1:inferStatus=",this.inferStatus);
+    switch(this.inferStatus) {
+    case "stoped": return; // ありえない
+    case "waitForRun": break; // 普通。Go ahead!
+    case "running": break; // ありえないはず
+    case "standby": break; // ありえないはず
+    case "waitForStop": this.inferStatus = "stoped"; return; // 止める
+    }
+    this.inferStatus = "running";
+
+    // 照合
+    let conflictSet = [];
     this.rules.forEach((rule)=>{
       if (rule.checkConditions(this.workingMemory))
         conflictSet.push(rule);
     });
+//console.log("GAHA2:conflictSet=",conflictSet);
+
+    // 競合解消1
+    // 照合ステップにおいてルールの条件部(LHS)が前回の実行時
+    const tmpSet = [];
+    conflictSet.forEach((rule)=>{
+      if (rule.isNewSituation())
+        tmpSet.push(rule);
+    });
+    conflictSet = tmpSet;
+//console.log("GAHA3:conflictSet=",conflictSet);
+
+    // 競合解消2
+    // priorityが一番高い物を抽出
     let maxPriority = -1;
     let targetRule = null;
     conflictSet.forEach((rule)=>{
@@ -375,24 +463,39 @@ class Engine {
         maxPriority = rule.priority;
       }
     });
+//console.log("GAHA4:maxPriority=",maxPriority);
+//console.log("GAHA5:targetRule=",targetRule);
+
+    // 実行部
+    // JavaScriptはシングルスレッドで
+    // このメソッド中にはawaitとかは含まないので
+    // このメソッドの実行中にthis.inferStatusが
+    // かわることはないとはずなのでまよわず以下。
     if (targetRule !== null) {
       targetRule.doActions();
+      this.justStart();
     } else {
-      this.timeoutID = 0;
-      return;
-    }
-    if (this.stopRequest === false) {
-      this.timeoutID = setTimeout(()=>{this.inferLoop();},0);
-    } else {
-      this.timeoutID = 0;
+      this.inferStatus = "standby";
     }
   }
 
   // 推論を停止させます
   stop() {
-    this.stopRequest = true;
-    clearTimeout(this.timeoutID);
-    this.timeoutID = 0;
+    // シングルレッドだし、もしそうでなくても
+    // たぶんclearTimeout()しても実行中だったら
+    // それは止まらないという過程で書く。
+    switch(this.inferStatus) {
+    case "stoped": break; // 何もしなくてOK
+    case "waitForRun": // 止める
+      clearTimeout(this.timeoutID);
+      this.inferStatus = "stoped";
+      break;
+    case "running": break; // ありえないはず
+    case "standby": // clearTimeout()いらないはず
+      this.inferStatus = "stoped";
+      break;
+    case "waitForStop": break; // 何もしなくて良いはず
+    }
   }
 }
 
@@ -615,7 +718,7 @@ class StoreBI extends BuiltIn {
     this.checkArgsNum(1);
     const name = this.getArgAsName(0);
     const v = this.getVar(name);
-    this.setInfoToWM(name,v);
+    this.setOneInfoToWM(name,v);
     return true;
   }
 }
@@ -628,7 +731,7 @@ class Store2BI extends BuiltIn {
     this.checkArgsNum(2);
     const name = this.getArgAsName(0);
     const value = this.getArg(1);
-    this.setInfoToWM(name,value);
+    this.setOneInfoToWM(name,value);
   }
 }
 
