@@ -1,3 +1,6 @@
+// このプログラムは迷路に関するプログラムなので推論には
+// あまり関係なし。Mazeのメソッドの名前からだいたい様相
+// してもらったら十分。
 class Maze {
   map = [//1つ目の添え字がY座標，2つ目の添え字がX座標
     ['■','■','■','■','■','■','■','■','■','■','■','■','■','■','■','■'],
@@ -84,7 +87,12 @@ class Maze {
       back = right;
       right = tmp;
     }
-    return {front,right,left,back};
+    const status = {
+      前壁: front,
+      左壁: left,
+      右壁: right
+    };
+    return status;
   }
   reachedTheGoal() {
     if (this.x===this.gx && this.y===this.gy)

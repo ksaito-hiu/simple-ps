@@ -11,51 +11,46 @@
     <script src="../dist/simple-ps.js"></script>
     <script src="./test03.js"></script>
     <script>
+     // ES2017でsleep
+     const sleep = msec => new Promise(resolve => setTimeout(resolve, msec));
+
      // 迷路を埋め込む場所をCSSセレクタで指定して迷路を生成
      const maze = new Maze("#maze_container");
 
-     class CustomBI extends SimplePS.BuiltIn {
-       constructor() {super("custom");}
-       eval() {
-         this.checkArgsNum(1);
-         const str = this.getArgAsStr(0);
-//console.log("GAHA:",str);
-         if (str==="前進") maze.goForward();
-         else if (str==="左旋回") maze.turnLeft();
-         else if (str==="右旋回") maze.turnRight();
+     const ruleStr =
+`/* 迷路を自動で解くルール． */
+1: seq(右壁 "なし") > result("右旋回,前進") ;
+1: seq(前壁 "あり") seq(右壁 "あり") > result("左旋回") ;
+1: seq(前壁 "なし") > result("前進") ;
+`;
+
+     async function main() {
+       const engine = new SimplePS.Engine(ruleStr);
+
+       while (true) {
+         const status = maze.getStatusOfAI();
+         console.log("status=",status); // statusの中身はコンソール見て
+         engine.setInfoToWM(status);
+         // 以下、1ステップだけ推論実行して結果を待つ。
+         // (タイムアウト10秒。実際には一瞬だけど)
+         const resStr = await engine.inferOneStepAndWait(10000);
+         console.log("resStr=",resStr); // resStrの中身はコンソール見て
+         const res = resStr.split(",");
+         for (let i=0;i<res.length;i++) {
+           switch(res[i]) {
+             case "前進": maze.goForward(); break;
+             case "左旋回": maze.turnLeft(); break;
+             case "右旋回": maze.turnRight(); break;
+           }
+           await sleep(1000); // 速すぎるので
+         }
          if (maze.reachedTheGoal()) {
-           console.log("Goal!");
-         } else {
-           setTimeout(()=>{
-             const status = maze.getStatusOfAI();
-             const info = {
-               "前壁": status.front,
-               "左壁": status.left,
-               "右壁": status.right
-             };
-             engine.setInfoToWM(info);
-           },1000);
+           console.log("ゴール!");
+           break;
          }
        }
      }
-
-     const ruleStr =
-`/* 迷路を自動で解くルール． */
-1: seq(右壁 "なし") > custom("右旋回") custom("前進") ;
-1: seq(前壁 "あり") seq(右壁 "あり") > custom("左旋回") ;
-1: seq(前壁 "なし") > custom("前進") ;
-`;
-     const engine = new SimplePS.Engine(ruleStr);
-     engine.addBuiltIn(new CustomBI());
-     //console.log(engine.rules);
-     const status0 = maze.getStatusOfAI();
-     const info = {
-       "前壁": status0.front,
-       "左壁": status0.left
-     };
-     info["右壁"] = status0.right;
-     engine.setInfoToWM(info);
-     engine.start();
+     main();
     </script>
   </body>
 </html>

@@ -6,6 +6,7 @@
   </head>
   <body>
     <h1>test</h1>
+    <p>推論結果はブラウザのコンソールに出ます。</p>
     <!-- <script src="https://cdn.jsdelivr.net/npm/simple-ps@latest/dist/simple-ps.js"></script> -->
     <script src="../dist/simple-ps.js"></script>
     <script>
@@ -23,15 +24,18 @@
 1: s(有蹄動物), s(黄褐色), s(黒い斑点) > st(キリン), st2(名前,"キリン") ;
 1: s(名前) > log("その動物は",名前,"ですね！") stop() ;
 `;
+     // ルールを指定して推論エンジンを生成
      const engine = new SimplePS.Engine(ruleStr);
-     //console.log(engine.rules);
-     engine.setOneInfoToWM("体毛");
-     engine.setOneInfoToWM("鋭い歯");
-     engine.setOneInfoToWM("鋭い爪");
-     //engine.setOneInfoToWM("黄褐色",null);
-     engine.setOneInfoToWM("黄褐色");
-     //engine.setInfoToWM({ "黒い斑点":null });
-     engine.setOneInfoToWM("黒い斑点");
+     // 以下はWMに5つの項目をワーキングメモリに
+     // 登録するだけなんだけど色々な方法でやってみる
+     engine.addOneInfoToWM("体毛");
+     engine.addOneInfoToWM("鋭い歯",null);
+     engine.addInfoToWM({"鋭い爪":null});
+     const kv = {};
+     kv["黄褐色"] = null;
+     kv["黒い斑点"] = null;
+     engine.addInfoToWM(kv);
+     //推論をスタートさせる。結果はコンソールに出る。
      engine.start();
     </script>
   </body>

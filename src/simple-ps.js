@@ -12,6 +12,12 @@ import { parse } from './parser';
 // 同じルールが無限に実行され続けるのを防ぐための物。
 // これの実装はRuleクラスのisNewSituation()メソッドに
 // 集約した。isNewSituation()はまだ理想的な状態ではない。
+// あと、OneTime推論モードというのが必要だった。普通は、
+// 1度ルールが実行された後も、他に実行できるルールがある
+// 時は、推論ループの中で実行されていく。でも推論を
+// 1ステップごとに実行したい時もあるので、それを実装する
+// ためにOneTime推論モードを導入する。これは推論エンジンの
+// そのためにinferStatusに"oneTime"という状態を導入する。
 
 //変数
 class Var {
@@ -250,13 +256,13 @@ class BuiltIn {
   getVar(name) {
     return this.env[name];
   }
-  // ワーキングメモリに情報を1個ずつ追加または上書き
-  setOneInfoToWM(infoName,value) {
-    this.engine.setOneInfoToWM(infoName,value);
-  }
   // keyとvalueのセットを受けとりワーキングメモリに情報を追加または上書き
-  setInfoToWM(keyValue) {
-    this.engine.setInfoToWM(keyValue);
+  addInfoToWM(keyValue) {
+    this.engine.addInfoToWM(keyValue);
+  }
+  // infoNameとvalueを受けとりワーキングメモリに情報を追加または上書き
+  addOneInfoToWM(infoName,value) {
+    this.engine.addOneInfoToWM(infoName,value);
   }
   // ワーキングメモリから情報を取り出す
   getInfoFromWM(infoName) {
@@ -265,6 +271,10 @@ class BuiltIn {
   // ワーキングメモリから情報を削除
   delInfoFromWM(infoName) {
     this.engine.delInfoFromWM(infoName);
+  }
+  // ワーキングメモリを空にする
+  clearWM() {
+    this.engine.clearWM();
   }
 }
 
@@ -280,6 +290,7 @@ class Engine {
   // "running": まさに実行中
   // "standby": 実行中ではあるが今やることがないので待機中
   // "waitForStop": 停止要求は出されてるけどまだ実行中の場合
+  // "oneTime": oneTime推論モード。この状態の時には状態は変化させない。
   inferStatus;
   timeoutID; // setTimeoutを止めるために記録(整数)
 
@@ -328,6 +339,8 @@ class Engine {
     this.addBuiltIn(new SneqBI());
     this.addBuiltIn(new StopBI());
     this.addBuiltIn(new WmBI());
+    this.resultBI = new ResultBI();
+    this.addBuiltIn(this.resultBI);
   }
 
   // ビルトインを追加
@@ -336,21 +349,8 @@ class Engine {
     this.builtIns[builtIn.name] = builtIn;
   }
 
-  // ワーキングメモリに情報を1個ずつ追加または上書き
-  setOneInfoToWM(infoName,value) {
-    this.workingMemoryTime++;
-    if (value === undefined) value = null;
-    this.workingMemory[infoName] = {updateTime:this.workingMemoryTime,value};
-    switch(this.inferStatus) {
-    case "stoped": break; // 何もしなくてOK
-    case "waitForRun": break; // 何もしなくて良いはず
-    case "running": break; // ありえないはず
-    case "standby": this.justStart(); break; // 起動
-    case "waitForStop": break; // 何もしなくて良いはず
-    }
-  }
   // keyとvalueのセットを受けとりワーキングメモリに情報を追加または上書き
-  setInfoToWM(keyValue) {
+  addInfoToWM(keyValue) {
     this.workingMemoryTime++;
     Object.keys(keyValue).forEach((infoName)=>{
       const value = keyValue[infoName];
@@ -362,8 +362,39 @@ class Engine {
     case "stoped": break; // 何もしなくてOK
     case "waitForRun": break; // 何もしなくて良いはず
     case "running": break; // ありえないはず
-    case "standby": this.justStart(); break; // 起動
+    case "standby": this.justStart(); this.inferStatus = "waitForRun"; break; // 起動
     case "waitForStop": break; // 何もしなくて良いはず
+    case "oneTime": break; // 何もしなくて良いはず
+    }
+  }
+
+  // infoNameとvalueを受けとりワーキングメモリに情報を追加または上書き
+  addOneInfoToWM(infoName,value) {
+    if (value === undefined)
+      value = null; // 基本undefinedは入れないようにする
+    const kv = {};
+    kv[infoName] = value;
+    this.addInfoToWM(kv);
+  }
+
+  // まずワーキングメモリを空にしてから、keyとvalueの
+  // セットを受けとりワーキングメモリに情報をセット
+  setInfoToWM(keyValue) {
+    this.workingMemoryTime++;
+    this.workingMemory = {};
+    Object.keys(keyValue).forEach((infoName)=>{
+      const value = keyValue[infoName];
+      if (value === undefined) value = null;
+      this.workingMemory[infoName] = {updateTime:this.workingMemoryTime,value};
+    });
+    
+    switch(this.inferStatus) {
+    case "stoped": break; // 何もしなくてOK
+    case "waitForRun": break; // 何もしなくて良いはず
+    case "running": break; // ありえないはず
+    case "standby": this.justStart(); this.inferStatus = "waitForRun"; break; // 起動
+    case "waitForStop": break; // 何もしなくて良いはず
+    case "oneTime": break; // 何もしなくて良いはず
     }
   }
 
@@ -376,13 +407,29 @@ class Engine {
 
   // ワーキングメモリから情報を消去
   delInfoFromWM(infoName) {
+    this.workingMemoryTime++;
     delete this.workingMemory[infoName];
     switch(this.inferStatus) {
     case "stoped": break; // 何もしなくてOK
     case "waitForRun": break; // 何もしなくて良いはず
     case "running": break; // ありえないはず
-    case "standby": this.justStart(); break; // 起動
+    case "standby": this.justStart(); this.inferStatus = "waitForRun"; break; // 起動
     case "waitForStop": break; // 何もしなくて良いはず
+    case "oneTime": break; // 何もしなくて良いはず
+    }
+  }
+
+  // ワーキングメモリを空にする
+  clearWM(infoName) {
+    this.workingMemoryTime++;
+    this.workingMemory = {};
+    switch(this.inferStatus) {
+    case "stoped": break; // 何もしなくてOK
+    case "waitForRun": break; // 何もしなくて良いはず
+    case "running": break; // ありえないはず
+    case "standby": this.justStart(); this.inferStatus = "waitForRun"; break; // 起動
+    case "waitForStop": break; // 何もしなくて良いはず
+    case "oneTime": break; // 何もしなくて良いはず
     }
   }
 
@@ -406,7 +453,7 @@ class Engine {
 
   // 推論をスタート(内部使用。単純に推論をスタートさせる)
   justStart() {
-console.trace("GAHA");
+//console.trace("GAHA");
     this.timeoutID = setTimeout(()=>{this.inferLoop();},0);
     this.inferStatus = "waitForRun";
   }
@@ -414,24 +461,55 @@ console.trace("GAHA");
   // 推論をスタート(外部からの呼び出し用)
   start() {
     switch(this.inferStatus) {
-    case "stoped": this.justStart(); break; // 起動
+    case "stoped": this.justStart(); this.inferStatus = "waitForRun"; break; // 起動
     case "waitForRun": break; // 何もしなくて良いはず
     case "running": break; // ありえないはず
-    case "standby": this.justStart(); break; // 起動
-    case "waitForStop": this.justStart(); break; // 起動
+    case "standby": this.justStart(); this.inferStatus = "waitForRun"; break; // 起動
+    case "waitForStop": this.justStart(); this.inferStatus = "waitForRun"; break; // 起動
+    case "oneTime": break; // 何もしないということにする
     }
   }
 
-  // 推論のループ。[照合、競合解消、実行]1セット分
+  // 推論[照合、競合解消、実行]の1ステップだけ実行
+  inferOneStep() {
+    switch(this.inferStatus) {
+    case "stoped": this.justStart(); this.inferStatus = "oneTime"; break; // 実行
+    case "waitForRun": this.inferStatus = "oneTime"; break; // 実行
+    case "running": break; // ありえないはず
+    case "standby": this.justStart(); this.inferStatus = "oneTime"; break; // 実行
+    case "waitForStop": this.inferStatus = "oneTime"; break; // 実行
+    case "oneTime": this.justStart(); this.inferStatus = "oneTime"; break; // 実行
+    }
+  }
+
+  // 推論[照合、競合解消、実行]の1ステップだけ実行して
+  // result(ResultBI)による結果が出るまで待って、結果を返す。
+  // 推論結果を待つ時間(ミリ秒)をtimeout引数で指定できる。
+  async inferOneStepAndWait(timeout) {
+    switch(this.inferStatus) {
+    case "stoped": this.justStart(); this.inferStatus = "oneTime"; break; // 実行
+    case "waitForRun": this.inferStatus = "oneTime"; break; // 実行
+    case "running": break; // ありえないはず
+    case "standby": this.justStart(); this.inferStatus = "oneTime"; break; // 実行
+    case "waitForStop": this.inferStatus = "oneTime"; break; // 実行
+    case "oneTime": this.justStart(); this.inferStatus = "oneTime"; break; // 実行
+    }
+    return await this.resultBI.getResult(timeout);
+  }
+
+  // 推論のループ制御。
   inferLoop() {
-console.log("GAHA0:Engine.inferLoop() ******************************");
-//console.log("GAHA1:inferStatus=",this.inferStatus);
+//console.log("GAHA0:Engine.inferLoop() ******************************");
+//console.log("GAHA1:",this.dumpWM());
+//console.log("GAHA2:inferStatus=",this.inferStatus);
+    let isOneTimeMode = false;
     switch(this.inferStatus) {
     case "stoped": return; // ありえない
     case "waitForRun": break; // 普通。Go ahead!
     case "running": break; // ありえないはず
     case "standby": break; // ありえないはず
     case "waitForStop": this.inferStatus = "stoped"; return; // 止める
+    case "oneTime": isOneTimeMode = true; break; // モード指定でGo!
     }
     this.inferStatus = "running";
 
@@ -441,7 +519,7 @@ console.log("GAHA0:Engine.inferLoop() ******************************");
       if (rule.checkConditions(this.workingMemory))
         conflictSet.push(rule);
     });
-//console.log("GAHA2:conflictSet=",conflictSet);
+//console.log("GAHA3:conflictSet=",conflictSet);
 
     // 競合解消1
     // 照合ステップにおいてルールの条件部(LHS)が前回の実行時
@@ -451,7 +529,7 @@ console.log("GAHA0:Engine.inferLoop() ******************************");
         tmpSet.push(rule);
     });
     conflictSet = tmpSet;
-//console.log("GAHA3:conflictSet=",conflictSet);
+//console.log("GAHA4:conflictSet=",conflictSet);
 
     // 競合解消2
     // priorityが一番高い物を抽出
@@ -463,9 +541,9 @@ console.log("GAHA0:Engine.inferLoop() ******************************");
         maxPriority = rule.priority;
       }
     });
-//console.log("GAHA4:maxPriority=",maxPriority);
-//console.log("GAHA5:targetRule=",targetRule);
-
+//console.log("GAHA5:maxPriority=",maxPriority);
+//console.log("GAHA6:targetRule=",(targetRule?targetRule.toString():null));
+//console.log("GAHA7:",this.dumpWM());
     // 実行部
     // JavaScriptはシングルスレッドで
     // このメソッド中にはawaitとかは含まないので
@@ -473,7 +551,12 @@ console.log("GAHA0:Engine.inferLoop() ******************************");
     // かわることはないとはずなのでまよわず以下。
     if (targetRule !== null) {
       targetRule.doActions();
-      this.justStart();
+      if (isOneTimeMode===true) {
+        this.inferStatus = "oneTime";
+      } else {
+        this.justStart();
+        this.inferStatus = "waitForRun";
+      }
     } else {
       this.inferStatus = "standby";
     }
@@ -495,6 +578,7 @@ console.log("GAHA0:Engine.inferLoop() ******************************");
       this.inferStatus = "stoped";
       break;
     case "waitForStop": break; // 何もしなくて良いはず
+    case "oneTime": break; // 何もしなくて良いはず
     }
   }
 }
@@ -718,7 +802,7 @@ class StoreBI extends BuiltIn {
     this.checkArgsNum(1);
     const name = this.getArgAsName(0);
     const v = this.getVar(name);
-    this.setOneInfoToWM(name,v);
+    this.addOneInfoToWM(name,v);
     return true;
   }
 }
@@ -731,7 +815,7 @@ class Store2BI extends BuiltIn {
     this.checkArgsNum(2);
     const name = this.getArgAsName(0);
     const value = this.getArg(1);
-    this.setOneInfoToWM(name,value);
+    this.addOneInfoToWM(name,value);
   }
 }
 
@@ -885,6 +969,35 @@ class WmBI extends BuiltIn {
   eval() {
     const wm = this.engine.dumpWM();
     console.log(wm);
+  }
+}
+
+// 主にOneTimeモードの時に推論結果を保存して
+// おくためのビルトイン。引数は1つに限定。
+class ResultBI extends BuiltIn {
+  reservedResult = null;
+  resolvePromiseFunc = null;
+  constructor() {super("result");}
+  eval() {
+    this.checkArgsNum(1);
+    const res = this.getArg(0);
+    if (this.resolvePromiseFunc) {
+      this.resolvePromiseFunc(res);
+      this.resolvePromiseFunc = null;
+    } else {
+      this.reservedResult = res;
+    }
+  }
+  async getResult(timeout) {
+    return new Promise((resolve,reject) => {
+      if (this.reservedResult) {
+        resolve(this.reservedResult);
+        this.reservedResult = null;
+      } else {
+        this.resolvePromiseFunc = resolve;
+      }
+      setTimeout(()=>{resolve("Timeout!")},timeout);
+    });
   }
 }
 
